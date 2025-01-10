@@ -206,6 +206,17 @@ body {
   background-color: #f1f1f1;
 }
 
+.dropdown-item.submenu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.submenu-marker {
+  margin-left: auto;
+  padding-left: 10px; /* Adjust the padding as needed for better spacing */
+}
+
 /* Project Header Editable Elements */
 .project-header h1.editable,
 .project-header p.editable {

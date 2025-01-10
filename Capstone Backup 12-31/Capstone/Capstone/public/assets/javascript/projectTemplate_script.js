@@ -72,33 +72,38 @@ document.addEventListener('DOMContentLoaded', function() {
         const groupCard = document.createElement('div');
         groupCard.className = 'group-card';
         groupCard.dataset.id = groupId;
-
+    
         const header = document.createElement('h3');
         header.textContent = groupHeader;
         groupCard.appendChild(header);
-
+    
         const table = createTable(groupId);
         groupCard.appendChild(table);
-
+    
         // Add the "Add Item" button
         const addRowBtn = createAddRowButton(table, groupId);
         groupCard.appendChild(addRowBtn);
-
+    
         // Create an invisible context menu for the table header
         const headerContextMenu = createDropdownMenu(
-            ['Delete Group', 'Add Column'],
+            [
+                'Delete Group',
+                {
+                    label: 'Add Column',
+                    submenu: ['Numbers', 'Upload Files', 'Text']
+                }
+            ],
             (option) => {
                 if (option === 'Delete Group') {
                     deleteGroup(groupId);
-                } else if (option === 'Add Column') {
-                    const columnName = prompt("Enter column name:");
-                    if (columnName) addColumn(columnName, table);
+                } else if (option === 'Numbers' || option === 'Upload Files' || option === 'Text') {
+                    addColumn(option, table);
                 }
             }
         );
         headerContextMenu.classList.add('header-context-menu');
         document.body.appendChild(headerContextMenu);
-
+    
         // Add event listener for right-click on the table header
         table.querySelector('tr').addEventListener('contextmenu', function(e) {
             e.preventDefault();
@@ -106,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
             headerContextMenu.style.left = `${e.clientX}px`;
             headerContextMenu.style.display = 'block';
         });
-
+    
         return groupCard;
     }
 
@@ -136,18 +141,48 @@ document.addEventListener('DOMContentLoaded', function() {
         const menu = document.createElement('div');
         menu.className = 'dropdown-menu';
         menu.style.display = 'none';
-
+        menu.style.position = 'absolute'; // Ensure the menu is positioned absolutely
+    
         options.forEach(option => {
-            const item = document.createElement('div');
-            item.textContent = option;
-            item.className = 'dropdown-item';
-            item.addEventListener('click', (e) => {
-                onSelect(option, menu.row);
-                menu.style.display = 'none';
-            });
-            menu.appendChild(item);
+            if (typeof option === 'string') {
+                const item = document.createElement('div');
+                item.textContent = option;
+                item.className = 'dropdown-item';
+                item.addEventListener('click', (e) => {
+                    onSelect(option, menu.row);
+                    menu.style.display = 'none';
+                });
+                menu.appendChild(item);
+            } else if (typeof option === 'object') {
+                const item = document.createElement('div');
+                item.className = 'dropdown-item submenu-item';
+                item.textContent = option.label;
+                item.style.position = 'relative';
+    
+                const marker = document.createElement('span');
+                marker.textContent = '▶';
+                marker.className = 'submenu-marker';
+                item.appendChild(marker);
+    
+                const submenu = createDropdownMenu(option.submenu, onSelect);
+                submenu.classList.add('submenu');
+                item.appendChild(submenu);
+    
+                item.addEventListener('mouseenter', () => {
+                    submenu.style.display = 'block';
+                    submenu.style.top = `${item.offsetTop}px`;
+                    submenu.style.left = `${item.offsetWidth}px`;
+                });
+    
+                item.addEventListener('mouseleave', () => {
+                    submenu.style.display = 'none';
+                });
+    
+                menu.appendChild(item);
+            }
         });
-
+    
+        document.body.appendChild(menu);
         return menu;
     }
 
@@ -554,10 +589,6 @@ function createRowContextMenu(row) {
         menu.style.display = 'block';
     });
 
-    row.addEventListener('mouseleave', () => {
-        menu.style.display = 'none';
-    });
-
     document.addEventListener('click', () => {
         menu.style.display = 'none';
     });
@@ -566,16 +597,19 @@ function createRowContextMenu(row) {
 }
 
 // function to delete a row
-// Add this function to handle row deletion
 function deleteRow(row) {
     const table = row.closest('table');
     const groupId = table.dataset.id;
     const rowId = row.dataset.rowId;
 
+    // Find the group in the groupData array
     const group = groupData.find(g => g.id === groupId);
     if (group) {
+        // Filter out the row to be deleted from the group's rows
         group.rows = group.rows.filter(r => r.id !== rowId);
+        // Remove the row from the DOM
         row.remove();
+        // Save the updated group data to localStorage
         saveGroups();
     }
 }
