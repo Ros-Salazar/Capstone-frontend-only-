@@ -156,7 +156,14 @@ document.addEventListener('DOMContentLoaded', function() {
         header.textContent = text;
         header.className = className;
         if (editable) {
-            header.contentEditable = true;
+            header.addEventListener('dblclick', () => {
+                header.contentEditable = true;
+                header.focus();
+            });
+            header.addEventListener('blur', () => {
+                header.contentEditable = false;
+                saveGroups(); // Save changes on blur
+            });
             header.dataset.columnId = columnId;
         }
         return header;
@@ -172,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         Array.from(table.rows).forEach((row, index) => {
             if (index === 0) return;
-            const newCell = createCell(option);
+            const newCell = createCell(option, row);
             row.appendChild(newCell);
         });
         saveGroups();
@@ -188,9 +195,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const newHeader = createHeaderCell(dateColumn, '', true);
                 headerRow.appendChild(newHeader);
 
-                Array.from(table.rows).forEach((row, index) => {
-                    if (index === 0) return;
-                    const dateCell = createDateCell();
+                Array.from(table.rows).forEach((row) => {
+                    const dateCell = createDateCell(row, dateColumn);
                     row.appendChild(dateCell);
 
                     const dateInput = dateCell.querySelector('input[type="date"]');
@@ -217,20 +223,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Update this function to attach the context menu to new rows
     function addRow(table) {
         const headerRow = table.querySelector('tr');
         const tr = document.createElement('tr');
         tr.dataset.rowId = `row-${Date.now()}`;
-
+    
         Array.from(headerRow.cells).forEach((header) => {
             const cell = createCell(header.textContent, tr);
             tr.appendChild(cell);
         });
-
+    
         table.appendChild(tr);
         saveGroups();
+        createRowContextMenu(tr); // Attach the context menu to the new row
     }
-
+    
     function createAddRowButton(table, groupId) {
         const addRowBtn = document.createElement('button');
         addRowBtn.className = 'add-item-btn';
@@ -243,26 +251,30 @@ document.addEventListener('DOMContentLoaded', function() {
     function createCell(headerText, row) {
         const cell = document.createElement('td');
         cell.dataset.columnId = headerText; // Use header text as column ID for simplicity
-
+    
         if (headerText === 'Start Date' || headerText === 'Due Date') {
             return createDateCell(row, headerText);
-        } else if (headerText === 'Text') {
-            cell.contentEditable = true;
+        } else if (headerText === 'Text' || headerText === 'Key Persons') {
+            cell.addEventListener('dblclick', () => {
+                cell.contentEditable = true;
+                cell.focus();
+            });
             cell.addEventListener('blur', () => {
+                cell.contentEditable = false;
                 updateRowData(row, headerText, cell.textContent);
             });
-        } else if (headerText === 'Numbers') {
-            cell.appendChild(createInput('text', 'Enter Value'));
         } else if (headerText === 'Status') {
-            cell.appendChild(createSelect(['To-do', 'In Progress', 'Done']));
-        } else if (headerText === 'Key Persons') {
-            cell.appendChild(createInput('email'));
+            const select = createSelect(['To-do', 'In Progress', 'Done']);
+            select.addEventListener('change', () => {
+                updateRowData(row, headerText, select.value);
+            });
+            cell.appendChild(select);
         } else if (headerText === 'Upload File') {
             const fileInput = createInput('file');
             fileInput.addEventListener('change', handleFileUpload);
             cell.appendChild(fileInput);
         }
-
+    
         return cell;
     }
 
@@ -273,24 +285,24 @@ document.addEventListener('DOMContentLoaded', function() {
         dateDisplay.className = 'formatted-date';
         dateDisplay.style.cursor = 'pointer';
         dateDisplay.style.display = 'none';
-
+    
         dateInput.addEventListener('change', () => {
             const date = new Date(dateInput.value);
             if (!isNaN(date)) {
                 dateDisplay.textContent = date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
                 dateInput.style.display = 'none';
                 dateDisplay.style.display = 'block';
-
+    
                 updateRowData(row, headerText, dateInput.value);
                 syncDateToCalendar(dateInput.value);
             }
         });
-
-        dateDisplay.addEventListener('click', () => {
+    
+        dateDisplay.addEventListener('dblclick', () => {
             dateInput.style.display = 'block';
             dateDisplay.style.display = 'none';
         });
-
+    
         cell.appendChild(dateInput);
         cell.appendChild(dateDisplay);
         return cell;
@@ -312,7 +324,6 @@ document.addEventListener('DOMContentLoaded', function() {
             opt.textContent = option;
             select.appendChild(opt);
         });
-        select.addEventListener('change', () => saveGroups());
         return select;
     }
 
@@ -355,18 +366,19 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.setItem('groupData', JSON.stringify(groupData));
     }
 
+    // Update this function to attach the context menu to each row
     function loadGroups() {
         groupData.forEach(group => {
             const groupCard = createGroupCard(group.id, group.header);
             groupContainer.appendChild(groupCard);
-
+    
             const table = groupCard.querySelector('table');
             const headerRow = table.querySelector('tr');
-
+    
             group.rows.forEach(rowData => {
                 const row = document.createElement('tr');
                 row.dataset.rowId = rowData.id;
-
+    
                 Array.from(headerRow.cells).forEach(cell => {
                     const cellData = rowData[cell.textContent] || '';
                     const newCell = createCell(cell.textContent, row);
@@ -384,8 +396,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     row.appendChild(newCell);
                 });
-
+    
                 table.appendChild(row);
+                createRowContextMenu(row); // Attach the context menu to the row
             });
         });
     }
@@ -402,37 +415,50 @@ document.addEventListener('DOMContentLoaded', function() {
         calendarGrid.innerHTML = '';
         const firstDay = new Date(currentYear, currentMonth, 1).getDay();
         const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
+    
         monthYearDisplay.textContent = `${new Date(currentYear, currentMonth).toLocaleString('en-US', { month: 'long' })} ${currentYear}`;
-
+    
         for (let i = 0; i < firstDay; i++) {
             const emptyCell = document.createElement('div');
             emptyCell.classList.add('calendar-day');
             calendarGrid.appendChild(emptyCell);
         }
-
+    
         for (let day = 1; day <= daysInMonth; day++) {
             const dayCell = document.createElement('div');
             dayCell.textContent = day;
             dayCell.classList.add('calendar-day');
             const fullDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
+    
             if (pinnedDates.includes(fullDate)) {
                 dayCell.classList.add('pinned');
             }
-
+    
             // Display group information in the calendar
             groupData.forEach(group => {
                 group.rows.forEach(row => {
                     if (row['Start Date'] === fullDate || row['Due Date'] === fullDate) {
                         const infoDiv = document.createElement('div');
                         infoDiv.className = 'calendar-info';
-                        infoDiv.textContent = `${group.header}: ${row['Text'] || ''}`;
+                        infoDiv.textContent = `${group.header}: ${row['Text'] || ''} (${row['Key Persons'] || ''})`;
+    
+                        // Color code based on status
+                        if (row['Status'] === 'To-do') {
+                            infoDiv.style.backgroundColor = '#4A90E2';
+                            infoDiv.style.color = 'white';
+                        } else if (row['Status'] === 'In Progress') {
+                            infoDiv.style.backgroundColor = '#F5A623';
+                            infoDiv.style.color = 'black';
+                        } else if (row['Status'] === 'Done') {
+                            infoDiv.style.backgroundColor = '#28A745';
+                            infoDiv.style.color = 'white';
+                        }
+    
                         dayCell.appendChild(infoDiv);
                     }
                 });
             });
-
+    
             dayCell.addEventListener('click', () => togglePinDate(fullDate, dayCell));
             calendarGrid.appendChild(dayCell);
         }
@@ -493,3 +519,63 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+//checks user status
+function checkUserStatus() {
+    const userStatus = localStorage.getItem('userStatus');
+    return userStatus;
+}
+
+// function to delete a row via context menu
+// Add this function to create the context menu for rows
+function createRowContextMenu(row) {
+    const menu = document.createElement('div');
+    menu.className = 'dropdown-menu';
+    menu.style.display = 'none';
+    menu.style.position = 'absolute'; // Ensure the menu is positioned absolutely
+
+    const deleteItem = document.createElement('div');
+    deleteItem.textContent = 'Delete Row';
+    deleteItem.className = 'dropdown-item';
+    deleteItem.addEventListener('click', () => {
+        deleteRow(row);
+        menu.style.display = 'none';
+    });
+    menu.appendChild(deleteItem);
+
+    document.body.appendChild(menu);
+
+    row.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+        menu.style.top = `${e.clientY + scrollTop}px`;
+        menu.style.left = `${e.clientX + scrollLeft}px`;
+        menu.style.display = 'block';
+    });
+
+    row.addEventListener('mouseleave', () => {
+        menu.style.display = 'none';
+    });
+
+    document.addEventListener('click', () => {
+        menu.style.display = 'none';
+    });
+
+    return menu;
+}
+
+// function to delete a row
+// Add this function to handle row deletion
+function deleteRow(row) {
+    const table = row.closest('table');
+    const groupId = table.dataset.id;
+    const rowId = row.dataset.rowId;
+
+    const group = groupData.find(g => g.id === groupId);
+    if (group) {
+        group.rows = group.rows.filter(r => r.id !== rowId);
+        row.remove();
+        saveGroups();
+    }
+}
