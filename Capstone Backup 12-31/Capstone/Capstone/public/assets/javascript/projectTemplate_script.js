@@ -450,25 +450,25 @@ document.addEventListener('DOMContentLoaded', function() {
         calendarGrid.innerHTML = '';
         const firstDay = new Date(currentYear, currentMonth, 1).getDay();
         const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    
+
         monthYearDisplay.textContent = `${new Date(currentYear, currentMonth).toLocaleString('en-US', { month: 'long' })} ${currentYear}`;
-    
+
         for (let i = 0; i < firstDay; i++) {
             const emptyCell = document.createElement('div');
             emptyCell.classList.add('calendar-day');
             calendarGrid.appendChild(emptyCell);
         }
-    
+
         for (let day = 1; day <= daysInMonth; day++) {
             const dayCell = document.createElement('div');
             dayCell.textContent = day;
             dayCell.classList.add('calendar-day');
             const fullDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    
+
             if (pinnedDates.includes(fullDate)) {
                 dayCell.classList.add('pinned');
             }
-    
+
             // Display group information in the calendar
             groupData.forEach(group => {
                 group.rows.forEach(row => {
@@ -476,24 +476,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         const infoDiv = document.createElement('div');
                         infoDiv.className = 'calendar-info';
                         infoDiv.textContent = `${group.header}: ${row['Text'] || ''} (${row['Key Persons'] || ''})`;
-    
+
                         // Color code based on status
                         if (row['Status'] === 'To-do') {
-                            infoDiv.style.backgroundColor = '#4A90E2';
-                            infoDiv.style.color = 'white';
+                            infoDiv.classList.add('status-todo');
                         } else if (row['Status'] === 'In Progress') {
-                            infoDiv.style.backgroundColor = '#F5A623';
-                            infoDiv.style.color = 'black';
+                            infoDiv.classList.add('status-in-progress');
                         } else if (row['Status'] === 'Done') {
-                            infoDiv.style.backgroundColor = '#28A745';
-                            infoDiv.style.color = 'white';
+                            infoDiv.classList.add('status-done');
                         }
-    
+
                         dayCell.appendChild(infoDiv);
                     }
                 });
             });
-    
+
             dayCell.addEventListener('click', () => togglePinDate(fullDate, dayCell));
             calendarGrid.appendChild(dayCell);
         }
@@ -608,8 +605,11 @@ function deleteRow(row) {
         // Filter out the row to be deleted from the group's rows
         group.rows = group.rows.filter(r => r.id !== rowId);
         // Remove the row from the DOM
-        row.remove();
+        row.parentNode.removeChild(row);
         // Save the updated group data to localStorage
         saveGroups();
+        console.log(`Row with ID ${rowId} deleted from group ${groupId}`);
+    } else {
+        console.error(`Group with ID ${groupId} not found`);
     }
 }
