@@ -12,41 +12,28 @@ window.togglePassword = (id) => {
     }
 };
 
-// Login functionality
+const mockUsers = [
+    { email: 'ceo_admin@ceo.com', password: 'ceo_admin', role: 'admin' },
+    { email: 'ceo_staff@ceo.com', password: 'ceo_staff', role: 'staff' },
+    { email: 'ceo_manager@ceo.com', password: 'ceo_manager', role: 'manager' }
+];
+
 const loginForm = document.getElementById("loginForm");
 const errorMessage = document.getElementById("error-message");
 
-loginForm.addEventListener("submit", async (e) => {
+loginForm.addEventListener("submit", (e) => {
     e.preventDefault();
 
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
 
-    try {
-        const response = await fetch('http://127.0.0.1:3000/api/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                email,
-                password,
-            }),
-        });
+    // Simulate authentication process
+    const user = mockUsers.find(user => user.email === email && user.password === password);
 
-        // Check if the response is OK
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        // Attempt to parse the response as JSON
-        const result = await response.json();
-        console.log('Parsed JSON Response:', result);
-
-        alert(`Welcome back, ${result.user.email}`);
+    if (user) {
+        alert(`Welcome back, ${user.name}`);
         window.location.href = "Dashboard.html";
-    } catch (error) {
-        errorMessage.textContent = error.message || 'Incorrect credentials, please try again.';
-        console.error('Fetch error:', error);
+    } else {
+        errorMessage.textContent = 'Incorrect credentials, please try again.';
     }
 });
