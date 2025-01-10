@@ -36,17 +36,21 @@ document.addEventListener('DOMContentLoaded', function() {
     calendarSection.classList.remove('active-section');
     setActiveButton('mainTableBtn');
 
+    // Add Group functionality
     addGroupBtn.addEventListener('click', function() {
-        const groupName = prompt("Enter group name:");
-        if (!groupName) return;
+        const groupHeader = prompt("Enter group header:");
+        if (!groupHeader) return;
 
         const groupId = `group-${Date.now()}`;
-        const table = createTable(groupId, groupName);
-        groupContainer.appendChild(table);
-        createAddRowButton(table, groupId);
+        const groupCard = createGroupCard(groupId, groupHeader);
+        groupContainer.appendChild(groupCard);
 
         // Add new group to groupData
-        groupData.push({ id: groupId, name: groupName, rows: [] });
+        groupData.push({ id: groupId, header: groupHeader, rows: [] });
+
+        // Add predefined columns and rows to the group table
+        const table = groupCard.querySelector('table');
+        addPredefinedColumnsAndRows(table, table.querySelector('tr'), groupId);
     });
 
     function setActiveButton(buttonId) {
@@ -55,18 +59,34 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById(buttonId).classList.add('active');
     }
 
-    function createTable(groupId, groupName) {
+    function createGroupCard(groupId, groupHeader) {
+        const groupCard = document.createElement('div');
+        groupCard.className = 'group-card';
+
+        const header = document.createElement('h3');
+        header.textContent = groupHeader;
+        groupCard.appendChild(header);
+
+        const table = createTable(groupId, groupHeader);
+        groupCard.appendChild(table);
+
+        createAddRowButton(table, groupId);
+
+        return groupCard;
+    }
+
+    function createTable(groupId, groupHeader) {
         const table = document.createElement('table');
         table.className = 'group-table';
         table.dataset.id = groupId;
 
-        const headerRow = createHeaderRow(table, groupId, groupName);
+        const headerRow = createHeaderRow(table, groupId, groupHeader);
         table.appendChild(headerRow);
 
         return table;
     }
 
-    function createHeaderRow(table, groupId, groupName) {
+    function createHeaderRow(table, groupId, groupHeader) {
         const headerRow = document.createElement('tr');
 
         const fixedColumnHeader = document.createElement('th');
@@ -84,8 +104,9 @@ document.addEventListener('DOMContentLoaded', function() {
         deleteGroupOption.className = 'dropdown-item';
         deleteGroupOption.addEventListener('click', () => {
             const addItemButton = document.querySelector(`.add-item-btn[data-id="${groupId}"]`);
+            const groupCard = table.closest('.group-card');
             if (addItemButton) addItemButton.remove();
-            groupContainer.removeChild(table);
+            if (groupCard) groupCard.remove();
 
             // Remove from groupData
             groupData = groupData.filter(group => group.id !== groupId);
@@ -100,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fixedColumnHeader.appendChild(dropdownMenu);
         headerRow.appendChild(fixedColumnHeader);
 
-        headerRow.appendChild(createHeaderCell(groupName, '', true));
+        headerRow.appendChild(createHeaderCell(groupHeader, '', true));
 
         const plusHeader = createHeaderCell('+', 'plus-header');
         plusHeader.style.cursor = 'pointer';
@@ -160,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
         addRowBtn.dataset.id = groupId;
         addRowBtn.textContent = 'Add Item';
         addRowBtn.addEventListener('click', () => addRow(table, table.rows[0]));
-        groupContainer.appendChild(addRowBtn);
+        table.parentElement.appendChild(addRowBtn);
         return addRowBtn;
     }
 
@@ -192,6 +213,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function addColumn(option, table, headerRow) {
+        const columnExists = Array.from(headerRow.cells).some(cell => cell.textContent === option);
+        if (columnExists) return;
+
         const newHeader = createHeaderCell(option, '', true);
         headerRow.insertBefore(newHeader, headerRow.lastChild);
 
@@ -203,19 +227,40 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function addTimelineColumns(table, headerRow) {
-        ['Start Date', 'Due Date'].forEach(dateColumn => {
-            const newHeader = createHeaderCell(dateColumn, '', true);
-            headerRow.insertBefore(newHeader, headerRow.lastChild);
+        const timelineColumns = ['Start Date', 'Due Date'];
+        const existingColumns = Array.from(headerRow.cells).map(cell => cell.textContent);
 
-            Array.from(table.rows).forEach((row, index) => {
-                if (index === 0) return;
-                const dateCell = createDateCell();
-                row.insertBefore(dateCell, row.lastChild);
+        timelineColumns.forEach(dateColumn => {
+            if (!existingColumns.includes(dateColumn)) {
+                const newHeader = createHeaderCell(dateColumn, '', true);
+                headerRow.insertBefore(newHeader, headerRow.lastChild);
 
-                const dateInput = dateCell.querySelector('input[type="date"]');
-                dateInput.addEventListener('change', () => syncDateToCalendar(dateInput.value));
-            });
+                Array.from(table.rows).forEach((row, index) => {
+                    if (index === 0) return;
+                    const dateCell = createDateCell();
+                    row.insertBefore(dateCell, row.lastChild);
+
+                    const dateInput = dateCell.querySelector('input[type="date"]');
+                    dateInput.addEventListener('change', () => syncDateToCalendar(dateInput.value));
+                });
+            }
         });
+    }
+
+    function addPredefinedColumnsAndRows(table, headerRow, groupId) {
+        const predefinedColumns = ['Text', 'Status', 'Key Persons', 'Start Date', 'Due Date'];
+        predefinedColumns.forEach(option => {
+            if (option === 'Start Date' || option === 'Due Date') {
+                addTimelineColumns(table, headerRow);
+            } else {
+                addColumn(option, table, headerRow);
+            }
+        });
+
+        // Add 3 rows to the table
+        for (let i = 0; i < 3; i++) {
+            addRow(table, headerRow);
+        }
     }
 
     function addRow(table, headerRow) {
@@ -419,4 +464,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize Calendar
     document.addEventListener('DOMContentLoaded', renderCalendar);
+
+    // Function to get URL parameters
+    function getUrlParameter(name) {
+        name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+        var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+        var results = regex.exec(location.search);
+        return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+    }
+
+    // Set project name and description from URL parameters
+    document.addEventListener('DOMContentLoaded', () => {
+        const projectName = getUrlParameter('projectName');
+        const projectDescription = getUrlParameter('projectDescription');
+
+        if (projectName) {
+            projectNameElement.textContent = projectName;
+        }
+        if (projectDescription) {
+            projectDescriptionElement.textContent = projectDescription;
+        }
+    });
 });

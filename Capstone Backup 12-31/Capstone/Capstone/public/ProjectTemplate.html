@@ -77,7 +77,28 @@
   <footer class="footer">
     <p>&copy; 2024 City Engineering Office. All rights reserved.</p>
   </footer>
+  <script>
+    // Function to get URL parameters
+    function getUrlParameter(name) {
+        name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+        var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+        var results = regex.exec(location.search);
+        return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+    }
 
+    // Set project name and description from URL parameters
+    document.addEventListener('DOMContentLoaded', () => {
+        const projectName = getUrlParameter('projectName');
+        const projectDescription = getUrlParameter('projectDescription');
+
+        if (projectName) {
+            document.getElementById('projectName').textContent = projectName;
+        }
+        if (projectDescription) {
+            document.getElementById('projectDescription').textContent = projectDescription;
+        }
+    });
+  </script>
   <script src="/Capstone Backup 12-31/Capstone/Capstone/public/assets/javascript/projectTemplate_script.js"></script>
 </body>
 </html>
