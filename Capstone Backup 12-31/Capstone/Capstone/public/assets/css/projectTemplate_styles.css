@@ -9,7 +9,6 @@
 body {
   font-family: Arial, sans-serif;
   color: #333;
-  
 }
 
 /* Navbar */
@@ -157,24 +156,23 @@ body {
   left: 0;
   background-color: white;
   z-index: 1;
-
 }
 
 /* Styling for group containers */
 .group-container {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column; /* Stack group cards vertically */
   gap: 15px;
 }
 
 .group-container .group-card {
-  flex: 1 1 calc(33.33% - 15px);
   padding: 15px;
   border: 1px solid #ccc;
   border-radius: 5px;
   background-color: #fff;
   text-align: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 15px; /* Add space between group cards */
 }
 
 /* Dropdown Styles */
@@ -220,7 +218,6 @@ body {
   font-size: 1.2em;
   color: #555;
   cursor: pointer;
-
 }
 
 .group-section, .calendar-section {
@@ -231,14 +228,12 @@ body {
   display: block; /* This class will be used to show sections */
 }
 
-
 .project-header h1.editable:hover,
 .project-header p.editable:hover {
   background-color: #f1faff;
   border-bottom: 1px dashed #077d03;
 }
 .editable {
-
   padding: 5px;
 }
 .editable:focus {

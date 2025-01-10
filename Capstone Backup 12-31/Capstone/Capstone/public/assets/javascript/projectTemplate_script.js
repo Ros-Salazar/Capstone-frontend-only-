@@ -17,6 +17,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Data structure to store group information
     let groupData = [];
 
+    // Prevent the default context menu from appearing
+    document.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+    });
+
     // Event listeners for buttons
     mainTableBtn.addEventListener('click', function() {
         groupSection.classList.add('active-section');
@@ -67,61 +72,74 @@ document.addEventListener('DOMContentLoaded', function() {
         header.textContent = groupHeader;
         groupCard.appendChild(header);
 
-        const table = createTable(groupId, groupHeader);
+        const table = createTable(groupId);
         groupCard.appendChild(table);
 
-        createAddRowButton(table, groupId);
+        // Create an invisible context menu for the table header
+        const headerContextMenu = createDropdownMenu(
+            ['Delete Group', 'Add Column'],
+            (option) => {
+                if (option === 'Delete Group') {
+                    deleteGroup(groupId);
+                } else if (option === 'Add Column') {
+                    const columnName = prompt("Enter column name:");
+                    if (columnName) addColumn(columnName, table, table.querySelector('tr'));
+                }
+            }
+        );
+        headerContextMenu.classList.add('header-context-menu');
+        document.body.appendChild(headerContextMenu);
+
+        // Create an invisible context menu for the table rows
+        const rowContextMenu = createDropdownMenu(
+            ['Delete Row'],
+            (option, row) => {
+                if (option === 'Delete Row') {
+                    row.remove();
+                }
+            }
+        );
+        rowContextMenu.classList.add('row-context-menu');
+        document.body.appendChild(rowContextMenu);
+
+        // Add event listener for right-click on the table header
+        table.querySelector('tr').addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            headerContextMenu.style.top = `${e.clientY}px`;
+            headerContextMenu.style.left = `${e.clientX}px`;
+            headerContextMenu.style.display = 'block';
+        });
+
+        // Add event listener for right-click on table rows
+        table.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            const row = e.target.closest('tr');
+            if (row && row !== table.querySelector('tr')) {
+                rowContextMenu.style.top = `${e.clientY}px`;
+                rowContextMenu.style.left = `${e.clientX}px`;
+                rowContextMenu.style.display = 'block';
+
+                // Pass the row element to the menu
+                rowContextMenu.row = row;
+            }
+        });
 
         return groupCard;
     }
 
-    function createTable(groupId, groupHeader) {
+    function createTable(groupId) {
         const table = document.createElement('table');
         table.className = 'group-table';
         table.dataset.id = groupId;
 
-        const headerRow = createHeaderRow(table, groupId, groupHeader);
+        const headerRow = createHeaderRow(table, groupId);
         table.appendChild(headerRow);
 
         return table;
     }
 
-    function createHeaderRow(table, groupId, groupHeader) {
+    function createHeaderRow(table, groupId) {
         const headerRow = document.createElement('tr');
-
-        const fixedColumnHeader = document.createElement('th');
-        fixedColumnHeader.className = 'fixed-column';
-        const dropdownBtn = document.createElement('button');
-        dropdownBtn.textContent = '⋮';
-        dropdownBtn.className = 'dropdown-btn';
-
-        const dropdownMenu = document.createElement('div');
-        dropdownMenu.className = 'dropdown-menu';
-        dropdownMenu.style.display = 'none';
-
-        const deleteGroupOption = document.createElement('div');
-        deleteGroupOption.textContent = 'Delete Group';
-        deleteGroupOption.className = 'dropdown-item';
-        deleteGroupOption.addEventListener('click', () => {
-            const addItemButton = document.querySelector(`.add-item-btn[data-id="${groupId}"]`);
-            const groupCard = table.closest('.group-card');
-            if (addItemButton) addItemButton.remove();
-            if (groupCard) groupCard.remove();
-
-            // Remove from groupData
-            groupData = groupData.filter(group => group.id !== groupId);
-        });
-
-        dropdownBtn.addEventListener('click', () => {
-            dropdownMenu.style.display = dropdownMenu.style.display === 'none' ? 'block' : 'none';
-        });
-
-        dropdownMenu.appendChild(deleteGroupOption);
-        fixedColumnHeader.appendChild(dropdownBtn);
-        fixedColumnHeader.appendChild(dropdownMenu);
-        headerRow.appendChild(fixedColumnHeader);
-
-        headerRow.appendChild(createHeaderCell(groupHeader, '', true));
 
         const plusHeader = createHeaderCell('+', 'plus-header');
         plusHeader.style.cursor = 'pointer';
@@ -148,41 +166,23 @@ document.addEventListener('DOMContentLoaded', function() {
         return headerRow;
     }
 
-    function createActionCell(row) {
-        const cell = document.createElement('td');
-        cell.className = 'fixed-column';
+    function createDropdownMenu(options, onSelect) {
+        const menu = document.createElement('div');
+        menu.className = 'dropdown-menu';
+        menu.style.display = 'none';
 
-        const dropdownBtn = document.createElement('button');
-        dropdownBtn.textContent = '⋮';
-        dropdownBtn.className = 'dropdown-btn';
-
-        const dropdownMenu = document.createElement('div');
-        dropdownMenu.className = 'dropdown-menu';
-        dropdownMenu.style.display = 'none';
-
-        const deleteOption = document.createElement('div');
-        deleteOption.textContent = 'Delete Row';
-        deleteOption.className = 'dropdown-item';
-        deleteOption.addEventListener('click', () => row.remove());
-
-        dropdownBtn.addEventListener('click', () => {
-            dropdownMenu.style.display = dropdownMenu.style.display === 'none' ? 'block' : 'none';
+        options.forEach(option => {
+            const item = document.createElement('div');
+            item.textContent = option;
+            item.className = 'dropdown-item';
+            item.addEventListener('click', (e) => {
+                onSelect(option, menu.row);
+                menu.style.display = 'none';
+            });
+            menu.appendChild(item);
         });
 
-        dropdownMenu.appendChild(deleteOption);
-        cell.appendChild(dropdownBtn);
-        cell.appendChild(dropdownMenu);
-        return cell;
-    }
-
-    function createAddRowButton(table, groupId) {
-        const addRowBtn = document.createElement('button');
-        addRowBtn.className = 'add-item-btn';
-        addRowBtn.dataset.id = groupId;
-        addRowBtn.textContent = 'Add Item';
-        addRowBtn.addEventListener('click', () => addRow(table, table.rows[0]));
-        table.parentElement.appendChild(addRowBtn);
-        return addRowBtn;
+        return menu;
     }
 
     function createHeaderCell(text, className = '', editable = false, columnId = null) {
@@ -194,22 +194,6 @@ document.addEventListener('DOMContentLoaded', function() {
             header.dataset.columnId = columnId;
         }
         return header;
-    }
-
-    function createDropdownMenu(options, onSelect) {
-        const menu = document.createElement('div');
-        menu.className = 'dropdown-menu';
-        menu.style.display = 'none';
-
-        options.forEach(option => {
-            const item = document.createElement('div');
-            item.textContent = option;
-            item.className = 'dropdown-item';
-            item.addEventListener('click', () => onSelect(option));
-            menu.appendChild(item);
-        });
-
-        return menu;
     }
 
     function addColumn(option, table, headerRow) {
